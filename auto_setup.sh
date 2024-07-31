@@ -17,7 +17,7 @@ echo " ██████╗████████╗███████╗ 
  ╚═════╝   ╚═╝   ╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝ [SRV-$serverID]"
 
 echo ""
-echo "*====================* GTeam's Host Setup Script (HSS) v0003 (30/07/2024) *====================*"
+echo "*====================* GTeam's Host Setup Script (HSS) v0004 (31/07/2024) *====================*"
 
 # What should we do???!
 echo "*==========* What would you like to do today ?"
@@ -263,7 +263,7 @@ elif [[ $mode == 5 ]]; then
 		touch /root/$configName.ovpn
 
 		sed -i 's/1194/443/g' /root/$configName-TCP.ovpn
-		sed -i 's/proto udp/proto tcp/g' /etc/openvpn/$configName-TCP.conf
+		sed -i 's/proto udp/proto tcp/g' /root/$configName-TCP.ovpn
 		sed -i 's/dev tun/dev tun_tcp/g' /root/$configName-TCP.ovpn
 		sed -i 's/AES-128-GCM/CHACHA20-POLY1305/g' /root/$configName-TCP.ovpn
 
