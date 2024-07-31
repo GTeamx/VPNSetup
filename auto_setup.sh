@@ -17,7 +17,7 @@ echo " ██████╗████████╗███████╗ 
  ╚═════╝   ╚═╝   ╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝ [SRV-$serverID]"
 
 echo ""
-echo "*====================* GTeam's Host Setup Script (HSS) v0003 (30/07/2024) *====================*"
+echo "*====================* GTeam's Host Setup Script (HSS) v0004 (31/07/2024) *====================*"
 
 # What should we do???!
 echo "*==========* What would you like to do today ?"
