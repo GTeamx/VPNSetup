@@ -35,6 +35,22 @@ VPN-Setup aims to be an easy to use, efficient & feature filled utility. This go
 
 Special credits to Angristan for his [OpenVPN installation script](https://github.com/angristan/openvpn-install) that we are using to automatically setup OpenVPN and manage users with!
 
+## ⬇️ Installation
+
+To run this script on your Linux machine, simply do
+```shell
+wget https://github.com/GTeamx/VPNSetup/releases/latest/download/auto_setup.sh
+```
+then
+```shell
+chmod +x auto_setup.sh
+```
+Finally, simply run do
+```shell
+./auto_setup.sh
+```
+Your good to go!
+
 ## 🔔 Releases/Updates
 
 We highly recommand using the latest releases when possible as they might fix critical issues or errors. **VPN-Setup updates are ONLY RELEASED [HERE](https://github.com/GTeamx/VPNSetup)!**.
