@@ -20,7 +20,7 @@
   <br>
   <a href="">![GitHub branch check runs](https://img.shields.io/github/check-runs/GTeamx/VPNSetup/main?style=for-the-badge&label='main'%20branch%20checks)</a>
   <a href="">![GitHub branch check runs](https://img.shields.io/github/check-runs/GTeamx/VPNSetup/dev?style=for-the-badge&label='dev'%20branch%20checks)</a>
-  <a href="">![Libraries.io dependency status for GitHub repo](https://img.shields.io/librariesio/github/GTeamx/VPNSetup?style=for-the-badge)</a>
+  <a href="">![Static Badge](https://img.shields.io/badge/any_text-OpenVPN_Install-blue?style=for-the-badge&label=Dependencies)</a>
   <br>
   <a href="">![GitHub Repo stars](https://img.shields.io/github/stars/GTeamx/VPNSetup?style=for-the-badge)</a>
   <a href="">![GitHub watchers](https://img.shields.io/github/watchers/GTeamx/VPNSetup?style=for-the-badge)</a>
