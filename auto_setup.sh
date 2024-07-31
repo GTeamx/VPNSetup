@@ -6,7 +6,9 @@ serverName=$(hostname)
 serverID="${serverName:2:1}" # Just get the number if this is part of GTeam's network
 
 if [[ $serverID =~ ^-?[0-9]+$ ]]; then
-	read -p "*==========* Since this server is not part of GTeam's network, please put an ID (for exemple if this is your first server, put 1, if its your fifth put 5, ect...) |: " serverID
+	echo "Server is part of GTeam's Network"
+else
+  read -p "*==========* Since this server is not part of GTeam's network, please put an ID (for exemple if this is your first server, put 1, if its your fifth put 5, ect...) |: " serverID
 fi
 
 echo " ██████╗████████╗███████╗ █████╗ ███╗   ███╗
