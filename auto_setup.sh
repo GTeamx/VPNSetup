@@ -263,7 +263,7 @@ elif [[ $mode == 5 ]]; then
 		touch /root/$configName.ovpn
 
 		sed -i 's/1194/443/g' /root/$configName-TCP.ovpn
-		sed -i 's/proto udp/proto tcp/g' /root/$configName-TCP.conf
+		sed -i 's/proto udp/proto tcp/g' /root/$configName-TCP.ovpn
 		sed -i 's/dev tun/dev tun_tcp/g' /root/$configName-TCP.ovpn
 		sed -i 's/AES-128-GCM/CHACHA20-POLY1305/g' /root/$configName-TCP.ovpn
 
