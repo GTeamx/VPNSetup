@@ -39,7 +39,7 @@ Special credits to Angristan for his [OpenVPN installation script](https://githu
 
 To run this script on your Linux machine, simply do
 ```shell
-wget https://github.com/GTeamx/VPNSetup/releases/latest/download/auto_setup.sh
+curl https://raw.githubusercontent.com/GTeamx/VPNSetup/main/auto_setup.sh > auto_setup.sh
 ```
 then
 ```shell
