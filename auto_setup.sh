@@ -114,16 +114,17 @@ if [[ $mode == 1 ]]; then
 elif [[ $mode == 2 ]]; then
 
 	read -p "*==========* What is the server's main ip address ? (IPv4/IPv6) |: " serverIP
-
+  read -p "*===================* What should be the UDP port ? |: " -e -i 587 openvpn_port_udp
+  read -p "*===================* What should be the TCP port ? |: " -e -i 443 openvpn_port_tcp
 	echo "Downloading OpenVPN installation script..."
 
 	sudo rm openvpn-install.sh
 
-	wget https://raw.githubusercontent.com/angristan/openvpn-install/master/openvpn-install.sh
+	wget https://raw.githubusercontent.com/GTeamx/openvpn-install/main/openvpn-install.sh
 
 	chmod +x openvpn-install.sh
 
-	AUTO_INSTALL=y APPROVE_IP=y IPV6_SUPPORT=y PORT_CHOICE=1 PROTOCOL_CHOICE=1 DNS=3 COMPRESSION_ENABLED=n CUSTOMIZE_ENC=n CLIENT=root PASS=1 ./openvpn-install.sh
+	AUTO_INSTALL=y APPROVE_IP=y IPV6_SUPPORT=y PORT_CHOICE=1 PROTOCOL_CHOICE=1 DNS=3 COMPRESSION_ENABLED=n CUSTOMIZE_ENC=n CLIENT=root PASS=1 SERVER_ID=$serverID PORT_UDP=$openvpn_port_udp PORT_TCP=$openvpn_port_tcp ./openvpn-install.sh
 
 	sudo systemctl stop openvpn@server
 	sudo systemctl stop openvpn
@@ -131,7 +132,7 @@ elif [[ $mode == 2 ]]; then
 	sudo cp /etc/openvpn/server.conf /etc/openvpn/TCP.conf
 	sudo cp /etc/openvpn/server.conf /etc/openvpn/UDP.conf
 
-	sed -i 's/1194/443/g' /etc/openvpn/TCP.conf
+	sed -i "s/1194/$openvpn_port_tcp/g" /etc/openvpn/TCP.conf
 	sed -i 's/udp6/tcp6/g' /etc/openvpn/TCP.conf
 	sed -i 's/dev tun/dev tun_tcp/g' /etc/openvpn/TCP.conf
 	sed -i "s/10.8.0.0/10.$serverID.2.0/g" /etc/openvpn/TCP.conf
@@ -139,18 +140,21 @@ elif [[ $mode == 2 ]]; then
 	sed -i "s/\/112/\/64/g" /etc/openvpn/TCP.conf
 	sed -i 's/AES-128-GCM/CHACHA20-POLY1305/g' /etc/openvpn/TCP.conf
 
-	sed -i 's/1194/587/g' /etc/openvpn/UDP.conf
+	sed -i "s/1194/$openvpn_port_udp/g" /etc/openvpn/UDP.conf
 	sed -i 's/dev tun/dev tun_udp/g' /etc/openvpn/UDP.conf
 	sed -i "s/10.8.0.0/10.$serverID.3.0/g" /etc/openvpn/UDP.conf
 	sed -i "s/fd42:42:42:42/fe0$serverID:0003:FFFF/g" /etc/openvpn/UDP.conf
 	sed -i "s/\/112/\/64/g" /etc/openvpn/UDP.conf
 	sed -i 's/AES-128-GCM/CHACHA20-POLY1305/g' /etc/openvpn/UDP.conf
 
+  printf "$openvpn_port_tcp" > /etc/openvpn/tcp_port.info
+  printf "$openvpn_port_udp" > /etc/openvpn/udp_port.info
+
 	sudo rm -rf /etc/openvpn/server.conf
 	touch /etc/openvpn/server.conf
 
-	sudo ufw allow in on eth0 from any to $serverIP port 443 proto tcp
-	sudo ufw allow in on eth0 from any to $serverIP port 587 proto udp
+	sudo ufw allow in on eth0 from any to $serverIP port $openvpn_port_tcp proto tcp
+	sudo ufw allow in on eth0 from any to $serverIP port $openvpn_port_udp proto udp
 
 	sudo ufw route allow in on tun_tcp out on eth0
 	sudo ufw route allow in on tun_udp out on eth0
@@ -258,18 +262,21 @@ elif [[ $mode == 5 ]]; then
 		echo "*====================* No config was tweaked (add). *====================*"
 	else
 
+    openvpn_port_udp=$(sudo cat /etc/openvpn/udp_port.info)
+    openvpn_port_tcp=$(sudo cat /etc/openvpn/tcp_port.info)
+
 		sudo cp /root/$configName.ovpn /root/$configName-TCP.ovpn
 		sudo cp /root/$configName.ovpn /root/$configName-UDP.ovpn
 
 		sudo rm -rf /root/$configName.ovpn
 		touch /root/$configName.ovpn
 
-		sed -i 's/1194/443/g' /root/$configName-TCP.ovpn
+		sed -i "s/1194/$openvpn_port_tcp/g" /root/$configName-TCP.ovpn
 		sed -i 's/proto udp/proto tcp/g' /root/$configName-TCP.ovpn
 		sed -i 's/dev tun/dev tun_tcp/g' /root/$configName-TCP.ovpn
 		sed -i 's/AES-128-GCM/CHACHA20-POLY1305/g' /root/$configName-TCP.ovpn
 
-		sed -i 's/1194/587/g' /root/$configName-UDP.ovpn
+		sed -i "s/1194/$openvpn_port_udp/g" /root/$configName-UDP.ovpn
 		sed -i 's/dev tun/dev tun_udp/g' /root/$configName-UDP.ovpn
 		sed -i 's/AES-128-GCM/CHACHA20-POLY1305/g' /root/$configName-UDP.ovpn
 
