@@ -1,115 +1,230 @@
-# To clean things up
-clear
+echo ""
 
-# Get server's location and basic infos
+# Colors!!! :D
+RED='\033[0;31m'
+LGREEN='\033[1;32m'
+YELLOW='\033[1;33m'
+RESET='\033[0m'
+
+# Preparing GTeam's VPNSetup folder in etc
+sudo mkdir -p /etc/gteam/vpnsetup/
+
+# Get server's basic ip like hostname & ip
 serverName=$(hostname)
 serverID="${serverName:2:1}" # Just get the number if this is part of GTeam's network
 
-if [[ $serverID =~ ^-?[0-9]+$ ]]; then
-	echo "Server is part of GTeam's Network"
+serverIP=$(curl ifconfig.me)
+
+netInterface=$(ip a show eth0)
+
+if [[ $netInterface == *"inet"* ]]; then
+	netInterface="eth0"
 else
-  read -p "*==========* Since this server is not part of GTeam's network, please put an ID (for exemple if this is your first server, put 1, if its your fifth put 5, ect...) |: " serverID
+	if [ ! -f /etc/gteam/vpnsetup/netInterface.srv-info ]; then
+		read -p "*<===>* It seems like the network interface 'eth0' does not exists. What interface should we use ? |: " netInterface
+		printf "$netInterface" > /etc/gteam/vpnsetup/netInterface.srv-info
+	else
+		netInterface=$(sudo cat /etc/gteam/vpnsetup/netInterface.srv-info)
+	fi
 fi
 
-echo " ██████╗████████╗███████╗ █████╗ ███╗   ███╗
-██╔════╝╚══██╔══╝██╔════╝██╔══██╗████╗ ████║
-██║  ███╗  ██║   █████╗  ███████║██╔████╔██║
-██║   ██║  ██║   ██╔══╝  ██╔══██║██║╚██╔╝██║
-╚██████╔╝  ██║   ███████╗██║  ██║██║ ╚═╝ ██║
- ╚═════╝   ╚═╝   ╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝ [SRV-$serverID]"
+if [[ $serverID =~ ^-?[0-9]+$ ]]; then
+	echo "This server is part of GTeam's Network."
+else
+	if [ ! -f /etc/gteam/vpnsetup/serverID.srv-info ]; then
+  	read -p "*<===>* Since this server is not part of GTeam's network, please enter an ID (for exemple if this is your first server, put 1, if its your fifth put 5, ect...) |: " serverID
+		printf "$serverID" > /etc/gteam/vpnsetup/serverID.srv-info
+	else
+		serverID=$(sudo cat /etc/gteam/vpnsetup/serverID.srv-info)
+	fi
+fi
+
+# To clean things up
+clear
+
+echo "             ██████╗████████╗███████╗ █████╗ ███╗   ███╗             
+            ██╔════╝╚══██╔══╝██╔════╝██╔══██╗████╗ ████║             
+            ██║  ███╗  ██║   █████╗  ███████║██╔████╔██║             
+            ██║   ██║  ██║   ██╔══╝  ██╔══██║██║╚██╔╝██║             
+            ╚██████╔╝  ██║   ███████╗██║  ██║██║ ╚═╝ ██║             
+             ╚═════╝   ╚═╝   ╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝             
+                                                                     
+██╗   ██╗██████╗ ███╗   ██╗███████╗███████╗████████╗██╗   ██╗██████╗ 
+██║   ██║██╔══██╗████╗  ██║██╔════╝██╔════╝╚══██╔══╝██║   ██║██╔══██╗
+██║   ██║██████╔╝██╔██╗ ██║███████╗█████╗     ██║   ██║   ██║██████╔╝
+╚██╗ ██╔╝██╔═══╝ ██║╚██╗██║╚════██║██╔══╝     ██║   ██║   ██║██╔═══╝ 
+ ╚████╔╝ ██║     ██║ ╚████║███████║███████╗   ██║   ╚██████╔╝██║     
+  ╚═══╝  ╚═╝     ╚═╝  ╚═══╝╚══════╝╚══════╝   ╚═╝    ╚═════╝ ╚═╝     [SRV-$serverID]"
 
 echo ""
-echo "*====================* GTeam's Host Setup Script (HSS) v0006 (01/08/2024) *====================*"
+echo "*<==================>* GTeam's VPNSetup Script v0007 (5th August, 2024) *<==================>*"
+echo ""
 
 # What should we do???!
-echo "*==========* What would you like to do today ?"
-echo "*=====* 1 | Automatically setup WireGuard"
-echo "*=====* 2 | Automatically setup OpenVPN"
-echo "*=====* 3 | Add peer to WireGuard and auto generate client config"
-echo "*=====* 4 | Remove existing peer from WireGuard"
-echo "*=====* 5 | Run OpenVPN manager script."
-read -p "*==========* Soooo what do you want to do ? |: " mode
+echo "*<===>* 1 | Automatically setup WireGuard"
+echo "*<===>* 2 | Automatically setup OpenVPN"
+echo "*<===>* 3 | Add peer to WireGuard and auto generate client config"
+echo "*<===>* 4 | Remove existing peer from WireGuard"
+echo "*<===>* 5 | Run OpenVPN manager script. (Add/Remove users for OpenVPN)"
+read -p "" mode
 
 if [[ $mode == 1 ]]; then
 
-	read -p "*==========* What's the DNS resolvers IP ? |: " dnsServer
-	read -p "*==========* What is the server's main ip address ? (IPv4/IPv6) |: " serverIP
-	read -p "*==========* If you want to keep an already existing WireGuard server public key, please put it here, else leave it blank |: " customPrivateKey
+	read -p "*<===>* What port should we use for WireGuard ? |: " -e -i 51820 wireguardPort
+	read -p "*<===>* What is the server's main ip address ? (IPv4/IPv6) |: " -e -i $serverIP serverIP
+	read -p "*<===>* What's DNS server should we use ? |: " -e -i "1.1.1.1" dnsServer
+	read -p "*<===>* Do you want to reset and revoke all existing WireGuard users ? (y/N) |: " -e -i "y" resetUsers
+	read -p "*<===>* Do you want to automatically setup UFW rules for WireGuard ? (y/N) |: " -e -i "y" autoSetupUFW
+	read -p "*<===>* If you want to keep an already existing WireGuard server public key, please put WireGuard server's private key here, else leave this blank |: " customPrivateKey
 
-	sudo rm -rf /etc/wireguard/cfg
+	echo ""
+	echo "*<==================>*"
+	echo "  WireGuard Summary"
+	echo ""
+	echo "* Port: $wireguardPort"
+	echo "* IP: $serverIP"
+	echo "* DNS: $dnsServer"
+	echo "* Reset users: $resetUsers"
+	echo "* Auto-setup UFW: $autoSetupUFW"
+	echo "* Private key: $privateKey"
+	echo "*<==================>*"
+	echo ""
+	read -p "*<===>* Proceed with WireGuard installation ? (y/N) |: " -e -i "y" installWireguard
+	echo ""
 
-	sudo mkdir /etc/wireguard/
-	sudo mkdir /etc/wireguard/cfg
+	if [ "${installWireguard,,}" = "y" ]; then
 
-	sudo rm -rf /etc/wireguard/*.info
+		if [ "${resetUsers,,}" = "y" ]; then
+			sudo rm -rf /etc/gteam/vpnsetup/cfg/wg/
+		fi
 
-	printf "$dnsServer" > /etc/wireguard/dns.info
-	printf "$serverIP" > /etc/wireguard/ip.info
+		sudo rm -rf /etc/gteam/vpnsetup/*.wg-info
 
-	# Fix "cant resolve hostname" ahhh error
-	if grep -q "$serverName" "/etc/hosts"; then
+		printf "$wireguardPort" > /etc/gteam/vpnsetup/port.wg-info
+		printf "$serverIP" > /etc/gteam/vpnsetup/ip.wg-info
+		printf "$dnsServer" > /etc/gteam/vpnsetup/dns.wg-info
+
+		# Yay
 		echo ""
+		echo -e "*<===>*$LGREEN SUCCESS!$RESET WireGuard prepared! <===>*"
+		echo ""
+
+		# Check and update APT
+		read -p "*<===>* Proceed with apt update, upgrade & autoremove ? (y/N) |: " -e -i "y" proceedApt
+
+		if [ "${proceedApt,,}" = "y" ]; then
+			sudo apt update && sudo apt upgrade -y && sudo apt autoremove -y
+
+			# Yay
+			echo ""
+			echo -e "*<===>*$LGREEN SUCCESS!$RESET Apt updated, upgraded & autoremove! <===>*"
+			echo ""
+		else
+			# o no
+			echo ""
+			echo -e "*<===>*$YELLOW SKIPPED!$RESET Apt update, upgrade & autoremove skipped. <===>*"
+			echo ""
+		fi
+
+		# Install WireGuard & (maybe) UFW
+		sudo apt install wireguard -y
+
+		# Yay
+		echo ""
+		echo -e "*<===>*$LGREEN SUCCESS!$RESET WireGuard installed! <===>*"
+		echo ""
+
+		if [ "${autoSetupUFW,,}" = "y" ]; then
+			sudo apt install ufw -y
+
+			# Yay
+			echo ""
+			echo -e "*<===>*$LGREEN SUCCESS!$RESET UFW installed! <===>*"
+			echo ""
+		else
+			# o no
+			echo ""
+			echo -e "*<===>*$YELLOW SKIPPED!$RESET UFW installation skipped. <===>*"
+			echo ""
+		fi
+
+		# Generate private & public keys
+		if [ "$customPrivateKey" == "" ]; then
+			privateKey=$(wg genkey | sudo tee /etc/wireguard/private.key)
+		else
+			privateKey="$customPrivateKey
+			"
+			printf "$privateKey" > /etc/wireguard/private.key
+		fi
+
+		sudo chmod go= /etc/wireguard/private.key
+		publicKey=$(sudo cat /etc/wireguard/private.key | wg pubkey | sudo tee /etc/wireguard/public.key)
+
+		# Define WireGuard's tunnel IPv4 & IPv6
+		tunwgd_ipv4="10.$serverID.1"
+		tunwgd_ipv6="fe0$serverID:0001:FFFF"
+
+		# WireGuard config (tun_wgd.conf)
+		tunwgd_conf="
+		[Interface]
+		Address = $tunwgd_ipv4.1/24
+		Address = $tunwgd_ipv6::1/64
+		DNS = $dnsServer
+		SaveConfig = true
+		PostUp = ufw route allow in on tun_wgd out on $netInterface
+		PostUp = iptables -t nat -I POSTROUTING -o $netInterface -j MASQUERADE
+		PostUp = ip6tables -t nat -I POSTROUTING -o $netInterface -j MASQUERADE
+		PreDown = ufw route delete allow in on tun_wgd out on $netInterface
+		PreDown = iptables -t nat -D POSTROUTING -o $netInterface -j MASQUERADE
+		PreDown = ip6tables -t nat -D POSTROUTING -o $netInterface -j MASQUERADE
+		ListenPort = $wireguardPort
+		PrivateKey = $privateKey"
+
+		printf "$tunwgd_conf" > /etc/wireguard/tun_wgd.conf
+		touch /etc/gteam/vpnsetup/usedIPs.wg-info
+
+		sudo systemctl enable wg-quick@tun_wgd.service
+		sudo systemctl start wg-quick@tun_wgd.service
+		
+		# Yay
+		echo ""
+		echo -e "*<===>*$LGREEN SUCCESS!$RESET WireGuard configured! <===>*"
+		echo ""
+
+		if [ "${autoSetupUFW,,}" = "y" ]; then
+			sudo ufw allow in on $netInterface from any to $serverIP port 443 proto udp
+			sudo ufw allow in on $netInterface from any to $serverIP port 22 proto tcp
+			sudo ufw enable
+			
+			# Yay
+			echo ""
+			echo -e "*<===>*$LGREEN SUCCESS!$RESET UFW configured! <===>*"
+			echo ""
+		else
+			# o no
+			echo ""
+			echo -e "*<===>*$YELLOW SKIPPED!$RESET UFW configuration skipped. <===>*"
+			echo ""
+		fi
+
+		# Tune sysctl to allow ipv4 & ipv6 forwarding
+		sudo sysctl -w net.ipv4.ip_forward=1
+		sudo sysctl -w net.ipv6.conf.all.forwarding=1
+		sudo sysctl -p
+		
+		# Yay
+		echo ""
+		echo -e "*<===>*$LGREEN SUCCESS!$RESET sysctl configured! <===>*"
+		echo ""
+
+		# Yay
+		echo ""
+		echo -e "*<===>*$LGREEN SUCCESS!$RESET WireGuard has been successfully installed and configured. It's ready to use! <===>*"
+		echo ""
+
 	else
-		printf "127.0.0.1       $serverName" >> /etc/hosts
-		printf "::1       $serverName" >> /etc/hosts
+		echo "*<===>* WireGuard installation cancelled. <===>*"
 	fi
-
-	# Check and update APT
-	sudo apt update && sudo apt upgrade -y && sudo apt autoremove -y
-	echo "*====================* apt update, apt upgrade and apt autoremove were ran! *====================*"
-
-	# Install WireGuard & UFW and set it up
-	sudo apt install wireguard ufw -y
-
-	# Generate private & public keys
-	if [[ "$customPrivateKey" == "" ]]; then
-		privateKey=$(wg genkey | sudo tee /etc/wireguard/private.key)
-	else
-		privateKey="$customPrivateKey
-		"
-		printf "$privateKey" > /etc/wireguard/private.key
-	fi
-
-	sudo chmod go= /etc/wireguard/private.key
-	publicKey=$(sudo cat /etc/wireguard/private.key | wg pubkey | sudo tee /etc/wireguard/public.key)
-
-	# Define WireGuard's tunnel IPv4 & IPv6
-	tunwgd_ipv4="10.$serverID.1"
-	tunwgd_ipv6="fe0$serverID:0001:FFFF"
-
-	# WireGuard config (tun_wgd.conf)
-	tunwgd_conf="
-	[Interface]
-	Address = $tunwgd_ipv4.1/24
-	Address = $tunwgd_ipv6::1/64
-	DNS = $dnsServer
-	SaveConfig = true
-	PostUp = ufw route allow in on tun_wgd out on eth0
-	PostUp = iptables -t nat -I POSTROUTING -o eth0 -j MASQUERADE
-	PostUp = ip6tables -t nat -I POSTROUTING -o eth0 -j MASQUERADE
-	PreDown = ufw route delete allow in on tun_wgd out on eth0
-	PreDown = iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE
-	PreDown = ip6tables -t nat -D POSTROUTING -o eth0 -j MASQUERADE
-	ListenPort = 443
-	PrivateKey = $privateKey"
-
-	printf "$tunwgd_conf" > /etc/wireguard/tun_wgd.conf
-	touch /etc/wireguard/usedIPs.info
-
-	sudo systemctl enable wg-quick@tun_wgd.service
-	sudo systemctl start wg-quick@tun_wgd.service
-	echo "*====================* WireGuard tunnel is up! Public key: $publicKey *====================*"
-
-	sudo ufw allow in on eth0 from any to $serverIP port 443 proto udp
-	sudo ufw allow in on eth0 from any to $serverIP port 22 proto tcp
-	sudo ufw enable
-	echo "*====================* UFW is ready! *====================*"
-
-	# Tune sysctl to allow ipv4 & ipv6 forwarding
-	sudo sysctl -w net.ipv4.ip_forward=1
-	sudo sysctl -w net.ipv6.conf.all.forwarding=1
-	sudo sysctl -p
-	echo "*====================* sysctl tuned! *====================*"
 
 elif [[ $mode == 2 ]]; then
 
