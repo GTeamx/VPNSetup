@@ -1,4 +1,4 @@
-echo ""
+# Utils functions
 
 # Colors!!! :D
 RED='\033[0;31m'
@@ -6,55 +6,88 @@ LGREEN='\033[1;32m'
 YELLOW='\033[1;33m'
 RESET='\033[0m'
 
-# Preparing GTeam's VPNSetup folder in etc
+function success {
+    echo ""
+    echo -e "*<===>*$LGREEN SUCCESS!$RESET $1 <===>*"
+    echo ""
+}
+
+function skipped {
+    echo ""
+    echo -e "*<===>*$YELLOW SKIPPED!$RESET $1 <===>*"
+    echo ""
+}
+
+function failed {
+    echo ""
+    echo -e "*<===>*$RED FAILED! $1 $RESET<===>*"
+    echo ""
+}
+
+# Main code
+
+# Preparing GTeam's VPNSetup folder in /etc
 sudo mkdir -p /etc/gteam/vpnsetup/
 
 # Get server's basic ip like hostname & ip
 serverName=$(hostname)
 serverID="${serverName:2:1}" # Just get the number if this is part of GTeam's network
 
-serverIP=$(curl ifconfig.me)
-
 netInterface=$(ip a show eth0)
 
+# Test if selected network interface is valid (has an ipv4/v6), else ask while the provided net interface is not valid
 if [[ $netInterface == *"inet"* ]]; then
 	netInterface="eth0"
 else
 	if [ ! -f /etc/gteam/vpnsetup/netInterface.srv-info ]; then
-		read -p "*<===>* It seems like the network interface 'eth0' does not exists. What interface should we use ? |: " netInterface
-		printf "$netInterface" > /etc/gteam/vpnsetup/netInterface.srv-info
+		while [[ $netInterface == "" ]];
+		do
+			read -p "*<===>* It seems like the network interface 'eth0' does not exists. What interface should we use ? |: " netInterface
+			# Check that this interface exists
+			netInterface=$(ip a show $netInterface)
+			if [[ $netInterface == *"inet"* ]]; then
+				printf "$netInterface" > /etc/gteam/vpnsetup/netInterface.srv-info
+			else
+				netInterface=""
+			fi
+		done
 	else
 		netInterface=$(sudo cat /etc/gteam/vpnsetup/netInterface.srv-info)
 	fi
 fi
 
-if [[ $serverID =~ ^-?[0-9]+$ ]]; then
+if [[ $serverID = '^[0-9]+$' ]] && ( $serverID < 255 ); then
 	echo "This server is part of GTeam's Network."
 else
 	if [ ! -f /etc/gteam/vpnsetup/serverID.srv-info ]; then
-  	read -p "*<===>* Since this server is not part of GTeam's network, please enter an ID (for exemple if this is your first server, put 1, if its your fifth put 5, ect...) |: " serverID
+		while ! [[ $serverID =~ ^[0-9]+$ && ( $serverID > 255 ) ]];
+		do
+  		read -p "*<===>* Since this server is not part of GTeam's network, please enter an ID (for exemple if this is your first server, put 1, if its your fifth put 5, ect...) |: " serverID
+		done
 		printf "$serverID" > /etc/gteam/vpnsetup/serverID.srv-info
 	else
 		serverID=$(sudo cat /etc/gteam/vpnsetup/serverID.srv-info)
 	fi
 fi
 
-# To clean things up
-clear
+serverIP=$(curl ifconfig.me)
 
-echo "             ██████╗████████╗███████╗ █████╗ ███╗   ███╗             
-            ██╔════╝╚══██╔══╝██╔════╝██╔══██╗████╗ ████║             
-            ██║  ███╗  ██║   █████╗  ███████║██╔████╔██║             
-            ██║   ██║  ██║   ██╔══╝  ██╔══██║██║╚██╔╝██║             
-            ╚██████╔╝  ██║   ███████╗██║  ██║██║ ╚═╝ ██║             
-             ╚═════╝   ╚═╝   ╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝             
-                                                                     
-██╗   ██╗██████╗ ███╗   ██╗███████╗███████╗████████╗██╗   ██╗██████╗ 
-██║   ██║██╔══██╗████╗  ██║██╔════╝██╔════╝╚══██╔══╝██║   ██║██╔══██╗
-██║   ██║██████╔╝██╔██╗ ██║███████╗█████╗     ██║   ██║   ██║██████╔╝
-╚██╗ ██╔╝██╔═══╝ ██║╚██╗██║╚════██║██╔══╝     ██║   ██║   ██║██╔═══╝ 
- ╚████╔╝ ██║     ██║ ╚████║███████║███████╗   ██║   ╚██████╔╝██║     
-  ╚═══╝  ╚═╝     ╚═╝  ╚═══╝╚══════╝╚══════╝   ╚═╝    ╚═════╝ ╚═╝     [SRV-$serverID]"
+# To clean things up
+#clear
+
+echo "                            ██████╗████████╗███████╗ █████╗ ███╗   ███╗             
+                           ██╔════╝╚══██╔══╝██╔════╝██╔══██╗████╗ ████║             
+                           ██║  ███╗  ██║   █████╗  ███████║██╔████╔██║             
+                           ██║   ██║  ██║   ██╔══╝  ██╔══██║██║╚██╔╝██║             
+                           ╚██████╔╝  ██║   ███████╗██║  ██║██║ ╚═╝ ██║             
+                            ╚═════╝   ╚═╝   ╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝             
+                                                                                    
+               ██╗   ██╗██████╗ ███╗   ██╗███████╗███████╗████████╗██╗   ██╗██████╗ 
+               ██║   ██║██╔══██╗████╗  ██║██╔════╝██╔════╝╚══██╔══╝██║   ██║██╔══██╗
+               ██║   ██║██████╔╝██╔██╗ ██║███████╗█████╗     ██║   ██║   ██║██████╔╝
+               ╚██╗ ██╔╝██╔═══╝ ██║╚██╗██║╚════██║██╔══╝     ██║   ██║   ██║██╔═══╝ 
+                ╚████╔╝ ██║     ██║ ╚████║███████║███████╗   ██║   ╚██████╔╝██║     
+                 ╚═══╝  ╚═╝     ╚═╝  ╚═══╝╚══════╝╚══════╝   ╚═╝    ╚═════╝ ╚═╝      [SRV-$serverID]"
 
 echo ""
 echo "*<==================>* GTeam's VPNSetup Script v0007 (5th August, 2024) *<==================>*"
@@ -90,7 +123,6 @@ if [[ $mode == 1 ]]; then
 	echo "*<==================>*"
 	echo ""
 	read -p "*<===>* Proceed with WireGuard installation ? (y/N) |: " -e -i "y" installWireguard
-	echo ""
 
 	if [ "${installWireguard,,}" = "y" ]; then
 
@@ -104,48 +136,39 @@ if [[ $mode == 1 ]]; then
 		printf "$serverIP" > /etc/gteam/vpnsetup/ip.wg-info
 		printf "$dnsServer" > /etc/gteam/vpnsetup/dns.wg-info
 
-		# Yay
-		echo ""
-		echo -e "*<===>*$LGREEN SUCCESS!$RESET WireGuard prepared! <===>*"
-		echo ""
+		# WireGuard preped
+		success "WireGuard prepared!"
 
 		# Check and update APT
 		read -p "*<===>* Proceed with apt update, upgrade & autoremove ? (y/N) |: " -e -i "y" proceedApt
 
 		if [ "${proceedApt,,}" = "y" ]; then
 			sudo apt update && sudo apt upgrade -y && sudo apt autoremove -y
-
-			# Yay
-			echo ""
-			echo -e "*<===>*$LGREEN SUCCESS!$RESET Apt updated, upgraded & autoremove! <===>*"
-			echo ""
+			success "apt updated, upgraded and autoremoved!"
 		else
-			# o no
-			echo ""
-			echo -e "*<===>*$YELLOW SKIPPED!$RESET Apt update, upgrade & autoremove skipped. <===>*"
-			echo ""
+			skipped "apt was not updated nor upgrade nor autoremoved."
 		fi
 
 		# Install WireGuard & (maybe) UFW
 		sudo apt install wireguard -y
 
-		# Yay
-		echo ""
-		echo -e "*<===>*$LGREEN SUCCESS!$RESET WireGuard installed! <===>*"
-		echo ""
+		if [[ $(dpkg -l | grep wireguard) == "" ]]; then
+			failed "WireGuard couldn't be installed properly."
+			exit 5
+		else
+			success "WireGuard installed correctly"
+		fi
 
 		if [ "${autoSetupUFW,,}" = "y" ]; then
 			sudo apt install ufw -y
-
-			# Yay
-			echo ""
-			echo -e "*<===>*$LGREEN SUCCESS!$RESET UFW installed! <===>*"
-			echo ""
+			if [[ $(dpkg -l | grep wireguard) == "" ]]; then
+				failed "UFW couldn't be installed properly."
+				exit 5
+			else
+				success "UFW installed correctly!"
+			fi
 		else
-			# o no
-			echo ""
-			echo -e "*<===>*$YELLOW SKIPPED!$RESET UFW installation skipped. <===>*"
-			echo ""
+			skipped "UFW was not installed."
 		fi
 
 		# Generate private & public keys
@@ -186,25 +209,26 @@ if [[ $mode == 1 ]]; then
 		sudo systemctl enable wg-quick@tun_wgd.service
 		sudo systemctl start wg-quick@tun_wgd.service
 		
-		# Yay
-		echo ""
-		echo -e "*<===>*$LGREEN SUCCESS!$RESET WireGuard configured! <===>*"
-		echo ""
+		if [[ $(sudo systemctl status wg-quick@tun_wgd.service | grep active) == "" ]]; then
+			failed "WireGuard couldn't be configured and started properly."
+			exit 5
+		else
+			success "WireGuard configured and started correctly!"
+		fi
 
 		if [ "${autoSetupUFW,,}" = "y" ]; then
 			sudo ufw allow in on $netInterface from any to $serverIP port 443 proto udp
 			sudo ufw allow in on $netInterface from any to $serverIP port 22 proto tcp
-			sudo ufw enable
+			echo "y" | sudo ufw enable
 			
-			# Yay
-			echo ""
-			echo -e "*<===>*$LGREEN SUCCESS!$RESET UFW configured! <===>*"
-			echo ""
+			if [[ $(sudo ufw status | grep "Status: active") == "" ]]; then
+				failed "UFW couldn't be configured and started properly."
+				exit 5
+			else
+				success "UFW configured and started correctly!"
+			fi
 		else
-			# o no
-			echo ""
-			echo -e "*<===>*$YELLOW SKIPPED!$RESET UFW configuration skipped. <===>*"
-			echo ""
+			skipped "UFW was not configured."
 		fi
 
 		# Tune sysctl to allow ipv4 & ipv6 forwarding
@@ -212,18 +236,21 @@ if [[ $mode == 1 ]]; then
 		sudo sysctl -w net.ipv6.conf.all.forwarding=1
 		sudo sysctl -p
 		
-		# Yay
-		echo ""
-		echo -e "*<===>*$LGREEN SUCCESS!$RESET sysctl configured! <===>*"
-		echo ""
+		if [[ $(sudo sysctl -p | grep "net.ipv4.ip_forward=1") == "" ]]; then
+			failed "sysctl couldn't be configured properly."
+			exit 5
+		elif [[ $(sudo sysctl -p | grep "net.ipv6.conf.all.forwarding=1") == "" ]]; then
+			failed "sysctl couldn't be configured properly."
+			exit 5
+		else
+			success "sysctl configured correctly!"
+		fi
 
-		# Yay
-		echo ""
-		echo -e "*<===>*$LGREEN SUCCESS!$RESET WireGuard has been successfully installed and configured. It's ready to use! <===>*"
-		echo ""
+		success "WireGuard setup finished!"
 
 	else
-		echo "*<===>* WireGuard installation cancelled. <===>*"
+		failed "WireGuard installation cancelled by user."
+		exit 5
 	fi
 
 elif [[ $mode == 2 ]]; then
