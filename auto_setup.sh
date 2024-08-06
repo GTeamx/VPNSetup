@@ -161,7 +161,7 @@ if [[ $mode == 1 ]]; then
 
 		if [ "${autoSetupUFW,,}" = "y" ]; then
 			sudo apt install ufw -y
-			if [[ $(dpkg -l | grep wireguard) == "" ]]; then
+			if [[ $(dpkg -l | grep ufw) == "" ]]; then
 				failed "UFW couldn't be installed properly."
 				exit 5
 			else
