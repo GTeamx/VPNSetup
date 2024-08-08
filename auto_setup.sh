@@ -1,6 +1,7 @@
 # Utils functions
 
 # Colors!!! :D
+BOLD='\033[1m'
 RED='\033[0;31m'
 LGREEN='\033[1;32m'
 YELLOW='\033[1;33m'
@@ -20,8 +21,30 @@ function skipped {
 
 function failed {
     echo ""
-    echo -e "*<===>*$RED FAILED! $1 $RESET<===>*"
+    echo -e "*<===>*$RED$BOLD FAILED! $1 $RESET<===>*"
     echo ""
+    exit -1
+}
+
+function resetWg {
+	if [[ $(dpkg -l | grep "wireguard ") != "" ]]; then
+		sudo wg-quick down tun_wgd
+		netInterface=$(sudo cat /etc/gteam/vpnsetup/netInterface.srv-info)
+		wireguardPort=$(sudo cat /etc/gteam/vpnsetup/port.wg-info)
+		serverIP=$(sudo cat /etc/gteam/vpnsetup/ip.wg-info)
+		sudo ufw delete allow in on $netInterface from any to $serverIP port $wireguardPort proto udp
+		sudo ufw reload
+		sudo apt remove wireguard* -y
+		sudo rm -rf /etc/gteam/vpnsetup/*.wg-info
+		sudo rm -rf /etc/sysctl.d/99-wireguard.conf
+		if [[ $(dpkg -l | grep "wireguard ") == "" ]]; then
+			success "WireGuard uninstalled successfully!"
+		else
+			failed "WireGuard couldn't be uninstalled properly."
+		fi
+	else
+		failed "WireGuard is not installed on that machine."
+	fi
 }
 
 # Main code
@@ -56,11 +79,12 @@ else
 	fi
 fi
 
-if [[ $serverID = '^[0-9]+$' ]] && ( $serverID < 255 ); then
+if [ $serverID = '^[0-9]+$' ] && [ $serverID < 255 ]; then
 	echo "This server is part of GTeam's Network."
 else
 	if [ ! -f /etc/gteam/vpnsetup/serverID.srv-info ]; then
-		while ! [[ $serverID =~ ^[0-9]+$ && ( $serverID > 255 ) ]];
+		while ! [[ $serverID =~ ^[0-9]+$ ]] \
+    || (( serverID >= 255 ))
 		do
   		read -p "*<===>* Since this server is not part of GTeam's network, please enter an ID (for exemple if this is your first server, put 1, if its your fifth put 5, ect...) |: " serverID
 		done
@@ -70,10 +94,10 @@ else
 	fi
 fi
 
-serverIP=$(curl ifconfig.me)
+serverIP=$(curl -s ifconfig.me)
 
 # To clean things up
-#clear
+clear
 
 echo "                            ██████╗████████╗███████╗ █████╗ ███╗   ███╗             
                            ██╔════╝╚══██╔══╝██╔════╝██╔══██╗████╗ ████║             
@@ -90,7 +114,7 @@ echo "                            ██████╗████████�
                  ╚═══╝  ╚═╝     ╚═╝  ╚═══╝╚══════╝╚══════╝   ╚═╝    ╚═════╝ ╚═╝      [SRV-$serverID]"
 
 echo ""
-echo "*<==================>* GTeam's VPNSetup Script v0007 (5th August, 2024) *<==================>*"
+echo "*<==================>* GTeam's VPNSetup Script v0008 (8th August, 2024) *<==================>*"
 echo ""
 
 # What should we do???!
@@ -98,16 +122,30 @@ echo "*<===>* 1 | Automatically setup WireGuard"
 echo "*<===>* 2 | Automatically setup OpenVPN"
 echo "*<===>* 3 | Add peer to WireGuard and auto generate client config"
 echo "*<===>* 4 | Remove existing peer from WireGuard"
-echo "*<===>* 5 | Run OpenVPN manager script. (Add/Remove users for OpenVPN)"
+echo "*<===>* 5 | Run OpenVPN manager script (Add/Remove users for OpenVPN)"
+echo "*<===>* 6 | Uninstall WireGuard, its components and its config files"
 read -p "" mode
 
 if [[ $mode == 1 ]]; then
+
+	if [[ $(dpkg -l | grep "wireguard ") != "" ]]; then
+		read -p "*<===>* It seems like WireGuard is already installed. Do you want to full uninstall it ? (includes the entire wireguard folder in /etc/wireguard) (y/N) |: " uninstallWireguard
+		
+		if [ "${uninstallWireguard,,}" = "y" ]; then
+			resetWg
+		else
+			skipped "WireGuard uninstallation has been skipped."
+		fi
+	fi
 
 	read -p "*<===>* What port should we use for WireGuard ? |: " -e -i 51820 wireguardPort
 	read -p "*<===>* What is the server's main ip address ? (IPv4/IPv6) |: " -e -i $serverIP serverIP
 	read -p "*<===>* What's DNS server should we use ? |: " -e -i "1.1.1.1" dnsServer
 	read -p "*<===>* Do you want to reset and revoke all existing WireGuard users ? (y/N) |: " -e -i "y" resetUsers
 	read -p "*<===>* Do you want to automatically setup UFW rules for WireGuard ? (y/N) |: " -e -i "y" autoSetupUFW
+	read -p "*<===>* Allow the script to run apt update, apt upgrade and apt autoremove ? (y/N) |: " -e -i "y" runApt
+	read -p "*<===>* Should we allow the SSH port on UFW for you ? (y/N) |: " -e -i "y" allowSSH
+	read -p "*<===>* Should we automatically enable UFW (Firewall) ? |: " -e -i "y" autoEnableUFW
 	read -p "*<===>* If you want to keep an already existing WireGuard server public key, please put WireGuard server's private key here, else leave this blank |: " customPrivateKey
 
 	echo ""
@@ -119,6 +157,9 @@ if [[ $mode == 1 ]]; then
 	echo "* DNS: $dnsServer"
 	echo "* Reset users: $resetUsers"
 	echo "* Auto-setup UFW: $autoSetupUFW"
+	echo "* Run apt: $runApt"
+	echo "* Allow SSH: $allowSSH"
+	echo "* Enable UFW: $autoEnableUFW"
 	echo "* Private key: $privateKey"
 	echo "*<==================>*"
 	echo ""
@@ -130,8 +171,6 @@ if [[ $mode == 1 ]]; then
 			sudo rm -rf /etc/gteam/vpnsetup/cfg/wg/
 		fi
 
-		sudo rm -rf /etc/gteam/vpnsetup/*.wg-info
-
 		printf "$wireguardPort" > /etc/gteam/vpnsetup/port.wg-info
 		printf "$serverIP" > /etc/gteam/vpnsetup/ip.wg-info
 		printf "$dnsServer" > /etc/gteam/vpnsetup/dns.wg-info
@@ -139,10 +178,7 @@ if [[ $mode == 1 ]]; then
 		# WireGuard preped
 		success "WireGuard prepared!"
 
-		# Check and update APT
-		read -p "*<===>* Proceed with apt update, upgrade & autoremove ? (y/N) |: " -e -i "y" proceedApt
-
-		if [ "${proceedApt,,}" = "y" ]; then
+		if [ "${runApt,,}" = "y" ]; then
 			sudo apt update && sudo apt upgrade -y && sudo apt autoremove -y
 			success "apt updated, upgraded and autoremoved!"
 		else
@@ -152,18 +188,18 @@ if [[ $mode == 1 ]]; then
 		# Install WireGuard & (maybe) UFW
 		sudo apt install wireguard -y
 
-		if [[ $(dpkg -l | grep wireguard) == "" ]]; then
+		if [[ $(dpkg -l | grep "wireguard ") == "" ]]; then
 			failed "WireGuard couldn't be installed properly."
-			exit 5
+			resetWg
 		else
-			success "WireGuard installed correctly"
+			success "WireGuard installed correctly!"
 		fi
 
 		if [ "${autoSetupUFW,,}" = "y" ]; then
 			sudo apt install ufw -y
 			if [[ $(dpkg -l | grep ufw) == "" ]]; then
 				failed "UFW couldn't be installed properly."
-				exit 5
+				resetWg
 			else
 				success "UFW installed correctly!"
 			fi
@@ -188,20 +224,21 @@ if [[ $mode == 1 ]]; then
 		tunwgd_ipv6="fe0$serverID:0001:FFFF"
 
 		# WireGuard config (tun_wgd.conf)
-		tunwgd_conf="
-		[Interface]
-		Address = $tunwgd_ipv4.1/24
-		Address = $tunwgd_ipv6::1/64
-		DNS = $dnsServer
-		SaveConfig = true
-		PostUp = ufw route allow in on tun_wgd out on $netInterface
-		PostUp = iptables -t nat -I POSTROUTING -o $netInterface -j MASQUERADE
-		PostUp = ip6tables -t nat -I POSTROUTING -o $netInterface -j MASQUERADE
-		PreDown = ufw route delete allow in on tun_wgd out on $netInterface
-		PreDown = iptables -t nat -D POSTROUTING -o $netInterface -j MASQUERADE
-		PreDown = ip6tables -t nat -D POSTROUTING -o $netInterface -j MASQUERADE
-		ListenPort = $wireguardPort
-		PrivateKey = $privateKey"
+		tunwgd_conf=`cat <<EOF
+[Interface]
+Address = $tunwgd_ipv4.1/24
+Address = $tunwgd_ipv6::1/64
+DNS = $dnsServer
+SaveConfig = true
+PostUp = ufw route allow in on tun_wgd out on $netInterface
+PostUp = iptables -t nat -I POSTROUTING -o $netInterface -j MASQUERADE
+PostUp = ip6tables -t nat -I POSTROUTING -o $netInterface -j MASQUERADE
+PreDown = ufw route delete allow in on tun_wgd out on $netInterface
+PreDown = iptables -t nat -D POSTROUTING -o $netInterface -j MASQUERADE
+PreDown = ip6tables -t nat -D POSTROUTING -o $netInterface -j MASQUERADE
+ListenPort = $wireguardPort
+PrivateKey = $privateKey
+EOF`
 
 		printf "$tunwgd_conf" > /etc/wireguard/tun_wgd.conf
 		touch /etc/gteam/vpnsetup/usedIPs.wg-info
@@ -211,37 +248,54 @@ if [[ $mode == 1 ]]; then
 		
 		if [[ $(sudo systemctl status wg-quick@tun_wgd.service | grep active) == "" ]]; then
 			failed "WireGuard couldn't be configured and started properly."
-			exit 5
+			resetWg
 		else
 			success "WireGuard configured and started correctly!"
 		fi
 
 		if [ "${autoSetupUFW,,}" = "y" ]; then
-			sudo ufw allow in on $netInterface from any to $serverIP port 443 proto udp
-			sudo ufw allow in on $netInterface from any to $serverIP port 22 proto tcp
-			echo "y" | sudo ufw enable
-			
-			if [[ $(sudo ufw status | grep "Status: active") == "" ]]; then
-				failed "UFW couldn't be configured and started properly."
-				exit 5
+
+			if [ "${allowSSH,,}" = "y" ]; then
+				sshPort=$(sudo cat /etc/ssh/sshd_config | grep "Port ")
+				sshPort=$(echo "$sshPort" | tr -cd '[:digit:]')
+				sudo ufw allow in on $netInterface from any to $serverIP port $sshPort proto tcp
 			else
-				success "UFW configured and started correctly!"
+				skipped "SSH port has been skipped from UFW."
 			fi
+
+			sudo ufw allow in on $netInterface from any to $serverIP port $wireguardPort proto udp
+
+			if [ "${autoSetupUFW,,}" = "y" ]; then
+				echo "y" | sudo ufw enable
+
+				if [[ $(sudo ufw status | grep "Status: active") == "" ]]; then
+					failed "UFW couldn't be configured and started properly."
+					resetWg
+				else
+					success "UFW started correctly!"
+				fi
+			else
+				skipped "UFW enabling has been skipped."
+			fi
+			
+			# TODO: Check if rule appears in UFW
+			success "UFW has been configured correctly!"
+
 		else
 			skipped "UFW was not configured."
 		fi
 
 		# Tune sysctl to allow ipv4 & ipv6 forwarding
-		sudo sysctl -w net.ipv4.ip_forward=1
-		sudo sysctl -w net.ipv6.conf.all.forwarding=1
-		sudo sysctl -p
+		echo 'net.ipv4.ip_forward=1' > /etc/sysctl.d/99-wireguard.conf
+		echo 'net.ipv6.conf.all.forwarding=1' >> /etc/sysctl.d/99-wireguard.conf
+		sudo sysctl --system
 		
-		if [[ $(sudo sysctl -p | grep "net.ipv4.ip_forward=1") == "" ]]; then
+		if [[ $(sudo cat /etc/sysctl.d/99-wireguard.conf | grep "net.ipv4.ip_forward=1") == "" ]]; then
 			failed "sysctl couldn't be configured properly."
-			exit 5
-		elif [[ $(sudo sysctl -p | grep "net.ipv6.conf.all.forwarding=1") == "" ]]; then
+			resetWg
+		elif [[ $(sudo cat /etc/sysctl.d/99-wireguard.conf | grep "net.ipv6.conf.all.forwarding=1") == "" ]]; then
 			failed "sysctl couldn't be configured properly."
-			exit 5
+			resetWg
 		else
 			success "sysctl configured correctly!"
 		fi
@@ -250,7 +304,6 @@ if [[ $mode == 1 ]]; then
 
 	else
 		failed "WireGuard installation cancelled by user."
-		exit 5
 	fi
 
 elif [[ $mode == 2 ]]; then
@@ -309,89 +362,152 @@ elif [[ $mode == 2 ]]; then
 
 elif [[ $mode == 3 ]]; then
 
-	if [ ! -f /etc/wireguard/ip.info ]; then
-		echo "*====================* You need to use the WireGuard setup function first! *====================*"
+	if [ ! -f /etc/gteam/vpnsetup/ip.wg-info ]; then
+		failed "You need to use the WireGuard automatic installation first."
 	else
+
+		wgInterface=$(ip a show tun_wgd)
+
+		# Test if selected network interface is valid (has an ipv4/v6), else ask while the provided net interface is not valid
+		if [[ $wgInterface != *"inet"* ]]; then
+			read -p "*<===>* The WireGuard tunnel is down and need to be up in order to add/remove peers, do want to enable it ? (y/N) |: " -e -i "y" enableWgTun
+			
+			if [ "${enableWgTun,,}" = "y" ]; then
+				sudo wg-quick up tun_wgd
+
+				if [ $(sudo wg) == "" ]; then
+					failed "WireGuard tunnel couldn't be enabled."
+				else
+					success "WireGuard tunnel enabled successfully!"
+				fi
+			else
+				failed "Can't proceed to peer creation without the WireGuard tunnel enabled."
+			fi
+		fi
+
 		tunwgd_publicKey=$(sudo cat /etc/wireguard/public.key)
-		serverDNS=$(sudo cat /etc/wireguard/dns.info)
-		serverIP=$(sudo cat /etc/wireguard/ip.info)
+		wireguardPort=$(sudo cat /etc/gteam/vpnsetup/port.wg-info)
+		serverDNS=$(sudo cat /etc/gteam/vpnsetup/dns.wg-info)
+		serverIP=$(sudo cat /etc/gteam/vpnsetup/ip.wg-info)
 
 		tunwgd_conf_presetClient_privateKey=$(wg genkey)
 		printf "$tunwgd_conf_presetClient_privateKey" > /etc/wireguard/temp.key
 		tunwgd_conf_presetClient_publicKey=$(sudo cat /etc/wireguard/temp.key | wg pubkey)
-		sudo rm -rf /etc/wireguard/temp.key/etc/wireguard/temp.key
+		sudo rm -rf /etc/wireguard/temp.key
 
 		tunwgd_conf_ipNumber=0
 		testIpNumber=2
 
 		while [ $tunwgd_conf_ipNumber == 0 ]
 		do
-			if grep -q "10.$serverID.1.$testIpNumber" /etc/wireguard/usedIPs.info; then
+			if grep -q "10.$serverID.1.$testIpNumber" /etc/gteam/vpnsetup/usedIPs.wg-info; then
 				testIpNumber=$((testIpNumber + 1))
 			else
 				tunwgd_conf_ipNumber=$testIpNumber
 			fi
 		done
 
-		tunwgd_conf_presetClient="
-		[Interface]
-		PrivateKey = $tunwgd_conf_presetClient_privateKey
-		Address = 10.$serverID.1.$tunwgd_conf_ipNumber/32, fe0$serverID:1:ffff::$tunwgd_conf_ipNumber/128
-		DNS = $serverDNS
-		PostUp = powershell.exe -Command \"& { Add-DnsClientNrptRule -Comment 'tun_wgd' -Namespace '.' -NameServers $serverDNS }\"
-		PostDown = powershell.exe -Command \"& { Get-DnsClientNrptRule | where Comment -eq 'tun_wgd' | foreach { Remove-DnsClientNrptRule -Name $_.Name -Force } }\"
+		read -p "*<===>* Will this config be used on Windows ? (DNS leak fix) (y/N) |: " -e -i "n" windowsConfig
 
-		[Peer]
-		PublicKey = $tunwgd_publicKey
-		AllowedIPs = 0.0.0.0/5, 8.0.0.0/7, 11.0.0.0/8, 12.0.0.0/6, 16.0.0.0/4, 32.0.0.0/3, 64.0.0.0/2, 128.0.0.0/3, 160.0.0.0/5, 168.0.0.0/6, 172.0.0.0/12, 172.32.0.0/11, 172.64.0.0/10, 172.128.0.0/9, 173.0.0.0/8, 174.0.0.0/7, 176.0.0.0/4, 192.0.0.0/9, 192.128.0.0/11, 192.160.0.0/13, 192.169.0.0/16, 192.170.0.0/15, 192.172.0.0/14, 192.176.0.0/12, 192.192.0.0/10, 193.0.0.0/8, 194.0.0.0/7, 196.0.0.0/6, 200.0.0.0/5, 208.0.0.0/4, 224.0.0.0/3, ::/1, 8000::/1
-		Endpoint = $serverIP:443
-		"
+		if [ "${windowsConfig,,}" = "y" ]; then
+			postUpDown=`cat <<EOF
+PostUp = powershell.exe -Command \"& { Add-DnsClientNrptRule -Comment 'tun_wgd' -Namespace '.' -NameServers $serverDNS }\"
+PostDown = powershell.exe -Command \"& { Get-DnsClientNrptRule | where Comment -eq 'tun_wgd' | foreach { Remove-DnsClientNrptRule -Name $_.Name -Force } }\"
+EOF`
+		else
+			postUpDown=""
+		fi
+
+		# If it's IPv6 is should be in brackets
+		if [[ $serverIP == *":"* ]]; then
+			serverIP="[$serverIP]"
+		fi
+
+		tunwgd_conf_presetClient=`cat <<EOF
+[Interface]
+PrivateKey = $tunwgd_conf_presetClient_privateKey
+Address = 10.$serverID.1.$tunwgd_conf_ipNumber/32, fe0$serverID:1:ffff::$tunwgd_conf_ipNumber/128
+DNS = $serverDNS
+$postUpDown
+
+[Peer]
+PublicKey = $tunwgd_publicKey
+AllowedIPs = 0.0.0.0/5, 8.0.0.0/7, 11.0.0.0/8, 12.0.0.0/6, 16.0.0.0/4, 32.0.0.0/3, 64.0.0.0/2, 128.0.0.0/3, 160.0.0.0/5, 168.0.0.0/6, 172.0.0.0/12, 172.32.0.0/11, 172.64.0.0/10, 172.128.0.0/9, 173.0.0.0/8, 174.0.0.0/7, 176.0.0.0/4, 192.0.0.0/9, 192.128.0.0/11, 192.160.0.0/13, 192.169.0.0/16, 192.170.0.0/15, 192.172.0.0/14, 192.176.0.0/12, 192.192.0.0/10, 193.0.0.0/8, 194.0.0.0/7, 196.0.0.0/6, 200.0.0.0/5, 208.0.0.0/4, 224.0.0.0/3, ::/1, 8000::/1
+Endpoint = $serverIP:$wireguardPort
+EOF`
+
+		read -p "*<===>* What should be the config's name ? (put the name of the person) |: " configName
 
 		wg set tun_wgd peer $tunwgd_conf_presetClient_publicKey allowed-ips 10.$serverID.1.$tunwgd_conf_ipNumber/32,fe0$serverID:1:ffff::$tunwgd_conf_ipNumber/128
 
-		printf "10.$serverID.1.$tunwgd_conf_ipNumber/32, fe0$serverID:1:ffff::$tunwgd_conf_ipNumber/128\n" >> /etc/wireguard/usedIPs.info
+		printf "10.$serverID.1.$tunwgd_conf_ipNumber/32, fe0$serverID:1:ffff::$tunwgd_conf_ipNumber/128\n" >> /etc/gteam/vpnsetup/usedIPs.wg-info
 
-		read -p "*==========* What should be the config's name ? (put the name of the person) |: " configName
+		sudo mkdir -p /etc/gteam/vpnsetup/cfg/wg
 
-		printf "$tunwgd_conf_presetClient" > /etc/wireguard/cfg/$configName.conf
+		printf "$tunwgd_conf_presetClient" > /etc/gteam/vpnsetup/cfg/wg/$configName.conf
 
-		echo "*====================* WireGuard config created successfully! *====================*"
-
+		success "WireGuard config '$configName' created successfully! You can find it at /etc/gteam/vpnsetup/cfg/wg/$configName.conf"
 	fi
 
 elif [[ $mode == 4 ]]; then
 
-	count=1
-	declare -A keys
-	declare -A configs
-	declare -A ips
+	if [ ! -f /etc/gteam/vpnsetup/ip.wg-info ]; then
+		failed "You need to use the WireGuard automatic installation first."
+	else
 
-	for configFile in /etc/wireguard/cfg/*
-	do
-		configFile_allowedIPs=$(sed '4!d' "$configFile")
-		configFile_allowedIPs="${configFile_allowedIPs:12:128}"
-		configFile_privateKey=$(sed '3!d' "$configFile")
-		configFile_privateKey="${configFile_privateKey:15:64}"
-		printf "$configFile_privateKey" > /etc/wireguard/temp.key
-		configFile_publicKey=$(sudo cat /etc/wireguard/temp.key | wg pubkey)
-		sudo rm -rf /etc/wireguard/temp.key/etc/wireguard/temp.key
-		configs[$count]=$configFile
-		keys[$count]=$configFile_publicKey
-		configFile_allowedIPs=$(sed 's/\/32.*//' <<< $configFile_allowedIPs)
-		ips[$count]=$configFile_allowedIPs
-		echo "$count | $configFile | $configFile_allowedIPs"
-		count=$((count + 1))
-	done
+		wgInterface=$(ip a show tun_wgd)
 
-	read -p "*==========* Which config would you like to revoke ? (ID) |: " configID
+		# Test if selected network interface is valid (has an ipv4/v6), else ask while the provided net interface is not valid
+		if [[ $wgInterface != *"inet"* ]]; then
+			read -p "*<===>* The WireGuard tunnel is down and need to be up in order to add/remove peers, do want to enable it ? (y/N) |: " -e -i "y" enableWgTun
+			
+			if [ "${enableWgTun,,}" = "y" ]; then
+				sudo wg-quick up tun_wgd
 
-	wg set tun_wgd peer ${keys[$configID]} remove
+				if [ $(sudo wg) == "" ]; then
+					failed "WireGuard tunnel couldn't be enabled."
+				else
+					success "WireGuard tunnel enabled successfully!"
+				fi
+			else
+				failed "Can't proceed to peer removal without the WireGuard tunnel enabled."
+			fi
+		fi
 
-	sed -i "/${ips[$configID]}/d" /etc/wireguard/usedIPs.info
+		count=1
+		declare -A keys
+		declare -A configs
+		declare -A ips
 
-	rm -rf ${configs[$configID]}
+		for configFile in /etc/gteam/vpnsetup/cfg/wg/*
+		do
+			configFileDisplayName="${configFile/"/etc/gteam/vpnsetup/cfg/wg/"/""}"
+			configFileDisplayName="${configFileDisplayName/".conf"/""}"
+			configFile_allowedIPs=$(sed '3!d' "$configFile")
+			configFile_allowedIPs="${configFile_allowedIPs:10:128}"
+			configFile_privateKey=$(sed '2!d' "$configFile")
+			configFile_privateKey="${configFile_privateKey:13:64}"
+			printf "$configFile_privateKey" > /etc/wireguard/temp.key
+			configFile_publicKey=$(sudo cat /etc/wireguard/temp.key | wg pubkey)
+			sudo rm -rf /etc/wireguard/temp.key/etc/wireguard/temp.key
+			configs[$count]=$configFile
+			keys[$count]=$configFile_publicKey
+			configFile_allowedIPsInternal=$(sed 's/\/32.*//' <<< $configFile_allowedIPs)
+			ips[$count]=$configFile_allowedIPsInternal
+			echo "$count | $configFileDisplayName | $configFile_allowedIPs"
+			count=$((count + 1))
+		done
 
-	echo "*====================* WireGuard config revoked successfully! *====================*"
+		read -p "*<===>* Which config would you like to revoke ? (ID) |: " configID
+
+		wg set tun_wgd peer ${keys[$configID]} remove
+
+		sed -i "/${ips[$configID]}/d" /etc/gteam/vpnsetup/usedIPs.wg-info
+
+		rm -rf ${configs[$configID]}
+
+		success "WireGuard peer removed successfully!"
+	fi
 
 elif [[ $mode == 5 ]]; then
 
@@ -442,6 +558,31 @@ elif [[ $mode == 5 ]]; then
 		echo "*====================* Config $configNameRemove.ovpn was removed! *====================*"
 	fi
 
+elif [[ $mode == 6 ]]; then
+
+	if [ ! -f /etc/gteam/vpnsetup/ip.wg-info ]; then
+		failed "You need to use the WireGuard automatic installation first."
+	else
+		if [[ $(dpkg -l | grep "wireguard ") == "" ]]; then
+			failed "WireGuard is not installed on this machine."
+		else
+			read -p "*<===>* Do you want to fully unistall WireGuard, it's components and config files ? (y/N) |: " -e -i "n" uninstallWireGuard
+		
+			if [ "${uninstallWireGuard,,}" = "y" ]; then
+				
+				# Just making sure before yall start crying
+				read -p "*<===>* Are you sure ? This will remove all config files of WireGuard! There's no turning back after this! |: " -e -i "n" uninstallWireGuardforSure
+
+				if [ "${uninstallWireGuardforSure,,}" = "y" ]; then
+					resetWg
+				else
+					skipped "WireGuard uninstallation has been skipped."
+				fi
+			else
+				skipped "WireGuard uninstallation has been skipped."
+			fi
+		fi
+	fi
 else
 	echo "Unknown option"
 fi
