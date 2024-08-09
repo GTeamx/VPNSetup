@@ -29,7 +29,7 @@
 
 </div>
 
-VPN-Setup aims to be an easy to use, efficient & feature filled utility. This goes from automatically setting up VPN services such as WireGuard or OpenVPN, to manage users seamlessly, adding or revoking a client in just a few seconds.
+VPN-Setup aims to be an easy to use, efficient & a feature filled utility. This goes from automatically setting up VPN services such as WireGuard or OpenVPN, to manage users seamlessly, adding or revoking a client in just a few seconds.
 
 ## 📎 Special Credits
 
@@ -37,19 +37,45 @@ Special credits to Angristan for his [OpenVPN installation script](https://githu
 
 ## ⬇️ Installation
 
-To run this script on your Linux machine, simply do
+First, download the latest release using wget on your server
 ```shell
 wget -O auto_setup.sh https://github.com/GTeamx/VPNSetup/releases/latest/download/auto_setup.sh
 ```
-then
+Then make it exectuable by everyone using
 ```shell
-chmod +x auto_setup.sh
+chmod a+x auto_setup.sh
 ```
-Finally, simply run do
+Finally, simply run the script by using
 ```shell
 ./auto_setup.sh
 ```
-Your good to go!
+
+## 🌟 Features & Functionalities
+
+- What does the WireGuard automatic install do for you ?:
+  - Support IPv4 & IPv6
+  - Port, DNS, apt, ufw & private key customization
+  - Generate private & public server keys
+  - Generate server config (with UFW & iptables)
+  - Configure UFW (Firewall) for WireGuard & SSH
+  - Tuning sysctl
+  - Add & automatically generate client configs (with/without Windows DNS leak fix)
+  - Remove existing WireGuard clients instantly
+  - Uninstall & remove every trace of WireGuard
+
+- What about OpenVPN ?:
+  - Support IPv4 & IPv6
+  - Port customization
+  - Run both TCP & UDP modes simultaneously
+  - Generate server configs automatically (TCP & UDP)
+  - Configure UFW (Firewall) & iptables (TCP & UDP)
+  - Tuning sysctl
+  - Add & automatically generate configs (for both TCP & UDP)
+  - Remove existing OpenVPN clients instantly
+  - Uninstall & remove every trace of OpenVPN
+
+- We do SOCKS5 too!:
+  - *Comming soon!*
 
 ## 🔔 Releases/Updates
 
@@ -57,13 +83,9 @@ We highly recommand using the latest releases when possible as they might fix cr
 
 There a high chance you'll face errors and issues if your using the latest .sh file from the dev or main branch, please only use the released versions.
 
-## 🚷 Errors/Bugs
+## 🚷 Errors/Bugs (Issues)
 
 If you face any error or bugs during the usage of the script, please open an issue on our GitHub page. Providing sufficiant information to we are able to reproduce the error/issue on our side (provide the OS, released version that you were using, any other installed softwares, any "special" config changes that may or may not have done like in sysctl for exemple, ect...)
-
-## 🎯 Issues/Feature request
-
-Before opening an issue or feature request make sure you follow our templates! If your issue/feature request goes unotice, you can open a ticket on our Discord server or bump it!
 
 ## 🔃 Contributing
 
