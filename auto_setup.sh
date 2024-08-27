@@ -411,7 +411,7 @@ elif [[ $mode == 3 ]]; then
 
 		if [ "${windowsConfig,,}" = "y" ]; then
 			postUpDown=`cat <<EOF
-PostUp = powershell.exe -Command \"& { Add-DnsClientNrptRule -Comment 'tun_wgd' -Namespace '.' -NameServers 172.16.2.53 }\"
+PostUp = powershell.exe -Command \"& { Add-DnsClientNrptRule -Comment 'tun_wgd' -Namespace '.' -NameServers $serverDNS }\"
 PostDown = powershell.exe -Command \"& { Get-DnsClientNrptRule | where Comment -eq 'tun_wgd' | foreach { Remove-DnsClientNrptRule -Name $_.Name -Force } }\"
 EOF`
 		else
